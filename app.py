@@ -2,7 +2,7 @@ import av
 import cv2
 import numpy as np
 import streamlit as st
-import tensorflow as tf
+from tflite_runtime.interpreter import Interpreter
 from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, RTCConfiguration
 
 # ---------------------------
@@ -15,13 +15,17 @@ st.write("Point your webcam at a traffic sign. Predictions appear on the video f
 THRESHOLD = st.sidebar.slider("Confidence threshold", 0.0, 1.0, 0.75, 0.05)
 
 # ---------------------------
-# Load model (cached so it only loads once)
+# Load TFLite model (cached so it only loads once)
 # ---------------------------
 @st.cache_resource
 def load_model():
-    return tf.keras.models.load_model("model_trained.h5")
+    interpreter = Interpreter(model_path="model_trained.tflite")
+    interpreter.allocate_tensors()
+    return interpreter
 
-model = load_model()
+interpreter = load_model()
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
 
 # ---------------------------
 # Class names
@@ -54,9 +58,11 @@ class SignProcessor(VideoProcessorBase):
 
         processed = cv2.resize(img, (32, 32))
         processed = preprocess(processed)
-        processed = processed.reshape(1, 32, 32, 1)
+        processed = processed.reshape(1, 32, 32, 1).astype(np.float32)
 
-        predictions = model.predict(processed, verbose=0)
+        interpreter.set_tensor(input_details[0]["index"], processed)
+        interpreter.invoke()
+        predictions = interpreter.get_tensor(output_details[0]["index"])
         class_index = int(np.argmax(predictions))
         probability = float(np.max(predictions))
 

@@ -2,5 +2,5 @@ streamlit
 streamlit-webrtc
 tflite-runtime
 opencv-python-headless
-numpy
+numpy<2
 av

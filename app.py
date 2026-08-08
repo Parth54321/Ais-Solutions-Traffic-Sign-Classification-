@@ -17,9 +17,22 @@ THRESHOLD = st.sidebar.slider("Confidence threshold", 0.0, 1.0, 0.75, 0.05)
 # ---------------------------
 # Load TFLite model (cached so it only loads once)
 # ---------------------------
+MODEL_PATH = "model_trained.tflite"
+
 @st.cache_resource
 def load_model():
-    interpreter = Interpreter(model_path="model_trained.tflite")
+    import os
+    if not os.path.exists(MODEL_PATH):
+        st.error(f"Model file not found at: {os.path.abspath(MODEL_PATH)}")
+        st.error(f"Files in this directory: {os.listdir('.')}")
+        st.stop()
+
+    size = os.path.getsize(MODEL_PATH)
+    if size < 1024:  # a real model should be at least tens of KB
+        st.error(f"'{MODEL_PATH}' exists but is only {size} bytes — likely a Git LFS pointer file, not the real model.")
+        st.stop()
+
+    interpreter = Interpreter(model_path=MODEL_PATH)
     interpreter.allocate_tensors()
     return interpreter
 
@@ -94,4 +107,4 @@ webrtc_streamer(
     media_stream_constraints={"video": True, "audio": False},
 )
 
-st.caption("Model: model_trained.h5 · Runs entirely in your browser session via WebRTC")
+st.caption("Model: model_trained.tflite · Runs entirely in your browser session via WebRTC")
